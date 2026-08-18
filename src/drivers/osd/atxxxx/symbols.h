@@ -116,3 +116,15 @@
 #define OSD_SYMBOL_ON_M                    0x9B
 #define OSD_SYMBOL_FLY_M                   0x9C
 #define OSD_SYMBOL_FLIGHT_TIME             0x70
+
+// Additional symbols added below
+#define OSD_SYMBOL_MPS                     0x9F
+#define OSD_SYMBOL_KMPH                    0xA1
+#define OSD_SYMBOL_LAT                     0xA6
+#define OSD_SYMBOL_LON                     0xA7
+#define OSD_SYMBOL_DIST_M                  0xB5
+#define OSD_SYMBOL_HOME_NEW                0xBF
+#define OSD_SYMBOL_ARROW_UP                0x60
+#define OSD_SYMBOL_ALTITUDE                0xEF
+#define OSD_SYMBOL_LQ                      0xF8
+#define OSD_SYMBOL_THROTTLE                0x04

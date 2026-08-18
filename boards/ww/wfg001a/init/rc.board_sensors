@@ -1,0 +1,32 @@
+#!/bin/sh
+#
+# board specific sensors init for Wuwei WFG001A (all sensors onboard)
+
+board_adc start
+
+if ! w688 start -s -b 1 -R 0 -q
+then
+	if ! icm42605 start -s -b 1 -R 0 -q
+	then
+		if ! icm42688p start -s -b 1 -R 0 -q
+		then
+			bmi270 start -s -b 1 -R 0 -q
+		fi
+	fi
+fi
+
+if ! dps310 start -I -a 0x77 -q
+then
+	if ! spl06 start -I -a 0x76 -q
+	then
+		bmp280 start -I -a 0x76 -q
+	fi
+fi
+
+if ! qmc5883p start -I -a 0x2C -R 6 -q
+then
+	if ! qmc5883l start -I -a 0x0D -R 6 -q
+	then
+		ist8310 start -I -a 0x0E -R 0 -q
+	fi
+fi

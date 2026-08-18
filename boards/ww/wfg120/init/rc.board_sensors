@@ -1,0 +1,50 @@
+#!/bin/sh
+#
+# board specific sensors init for Wuwei WFG120
+#------------------------------------------------------------------------------
+
+# 1) ADC (voltage/current)
+board_adc start
+
+# 2) IMU1: SPI1 (-b 1)
+# Betaflight target uses CW270. W688 in PX4 needs an extra roll-180 compensation.
+if ! w688 start -s -b 1 -R 14 -q
+then
+	if ! icm42605 start -s -b 1 -R 6 -q
+	then
+		if ! icm42688p start -s -b 1 -R 6 -q
+		then
+			bmi270 start -s -b 1 -R 0 -q
+		fi
+	fi
+fi
+
+# 3) IMU2: SPI2 (-b 2)
+if ! w688 start -s -b 2 -R 14 -q
+then
+	if ! icm42605 start -s -b 2 -R 6 -q
+	then
+		if ! icm42688p start -s -b 2 -R 6 -q
+		then
+			bmi270 start -s -b 2 -R 0 -q
+		fi
+	fi
+fi
+
+# 4) Barometer: internal I2C2, prefer DPS310 and keep SPL06 fallback
+if ! dps310 start -I -a 0x77 -q
+then
+	if ! spl06 start -I -a 0x76 -q
+	then
+		dps310 start -I -a 0x76 -q
+	fi
+fi
+
+# 5) Magnetometer: prefer QMC5883P @ 0x2C, then QMC5883L @ 0x0D, then IST8310 @ 0x0E
+if ! qmc5883p start -I -a 0x2C -R 6 -q
+then
+	if ! qmc5883l start -I -a 0x0D -R 6 -q
+	then
+		ist8310 start -I -a 0x0E -R 0 -q
+	fi
+fi

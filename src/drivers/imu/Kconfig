@@ -22,6 +22,8 @@ menu "IMU"
         select DRIVERS_IMU_INVENSENSE_MPU6000
         select DRIVERS_IMU_INVENSENSE_MPU6500
         select DRIVERS_IMU_INVENSENSE_MPU9250
+        select DRIVERS_IMU_WW_W688
+        select DRIVERS_IMU_WW_W689
         select DRIVERS_IMU_ST_L3GD20
         select DRIVERS_IMU_ST_LSM303D
         select DRIVERS_IMU_ST_LSM9DS1

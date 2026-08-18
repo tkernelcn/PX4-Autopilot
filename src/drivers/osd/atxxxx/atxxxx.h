@@ -49,7 +49,14 @@
 #include <px4_platform_common/i2c_spi_buses.h>
 #include <uORB/Subscription.hpp>
 #include <uORB/topics/battery_status.h>
+#include <uORB/topics/estimator_status_flags.h>
+#include <uORB/topics/home_position.h>
+#include <uORB/topics/input_rc.h>
+#include <uORB/topics/sensor_gps.h>
+#include <uORB/topics/vehicle_attitude.h>
+#include <uORB/topics/vehicle_global_position.h>
 #include <uORB/topics/vehicle_local_position.h>
+#include <uORB/topics/vehicle_thrust_setpoint.h>
 #include <uORB/topics/vehicle_status.h>
 
 #define OSD_SPI_BUS_SPEED (2000000L) /*  2 MHz  */
@@ -95,8 +102,18 @@ private:
 	void clear_line(uint8_t pos_x, uint8_t pos_y, int length);
 
 	int add_battery_info(uint8_t pos_x, uint8_t pos_y);
+	int add_cell_voltage(uint8_t pos_x, uint8_t pos_y);
 	int add_altitude(uint8_t pos_x, uint8_t pos_y);
 	int add_flighttime(float flight_time, uint8_t pos_x, uint8_t pos_y);
+	int add_groundspeed(uint8_t pos_x, uint8_t pos_y);
+	int add_vertical_speed(uint8_t pos_x, uint8_t pos_y);
+	int add_yaw(uint8_t pos_x, uint8_t pos_y);
+	int add_home_info(uint8_t pos_x, uint8_t pos_y);
+	int add_gps_info(uint8_t pos_x, uint8_t pos_y);
+	int add_signal_strength(uint8_t pos_x, uint8_t pos_y);
+	int add_link_quality(uint8_t pos_x, uint8_t pos_y);
+	int add_ekf_fusion_status(uint8_t pos_x, uint8_t pos_y);
+	int add_throttle(uint8_t pos_x, uint8_t pos_y);
 
 	static const char *get_flight_mode(uint8_t nav_state);
 
@@ -105,19 +122,76 @@ private:
 
 	int update_topics();
 	int update_screen();
+	int add_string_to_screen(const char *str, uint8_t pos_x, uint8_t pos_y);
+	uint8_t get_flighttime_row() const;
+	uint8_t get_gps_row() const;
 
 	uORB::Subscription _battery_sub{ORB_ID(battery_status)};
+	uORB::Subscription _estimator_status_flags_sub{ORB_ID(estimator_status_flags)};
+	uORB::Subscription _home_position_sub{ORB_ID(home_position)};
+	uORB::Subscription _input_rc_sub{ORB_ID(input_rc)};
+	uORB::Subscription _sensor_gps_sub{ORB_ID(vehicle_gps_position)};
+	uORB::Subscription _vehicle_thrust_setpoint_sub{ORB_ID(vehicle_thrust_setpoint)};
+	uORB::Subscription _vehicle_attitude_sub{ORB_ID(vehicle_attitude)};
+	uORB::Subscription _vehicle_global_position_sub{ORB_ID(vehicle_global_position)};
 	uORB::Subscription _local_position_sub{ORB_ID(vehicle_local_position)};
 	uORB::Subscription _vehicle_status_sub{ORB_ID(vehicle_status)};
 
 	// battery
 	float _battery_voltage_v{0.f};
 	float _battery_discharge_mah{0.f};
+	float _battery_remaining{-1.f};
+	uint8_t _battery_cell_count{0};
 	bool _battery_valid{false};
 
-	// altitude
+	// altitude (display: relative to home when valid)
 	float _local_position_z{0.f};
 	bool _local_position_valid{false};
+	float _local_z_ned{0.f};
+	bool _local_z_valid{false};
+	float _vertical_speed_m_s{0.f};
+	bool _vertical_speed_valid{false};
+	float _ground_speed_kmh{0.f};
+	bool _ground_speed_valid{false};
+
+	// yaw
+	uint16_t _yaw_deg{0};
+	bool _yaw_valid{false};
+
+	// home
+	uint16_t _home_bearing_deg{0};
+	float _home_distance_m{0.f};
+	bool _home_valid{false};
+	float _home_z_ned{0.f};
+	bool _home_lpos_valid{false};
+
+	// gps
+	double _gps_lat_deg{0.0};
+	double _gps_lon_deg{0.0};
+	uint8_t _gps_fix_type{0};
+	uint8_t _gps_satellites_used{0};
+	bool _gps_data_valid{false};
+	bool _gps_fix_valid{false};
+
+	// signal strength
+	float _rssi_dbm{NAN};
+	bool _rssi_valid{false};
+	int8_t _link_quality{-1};
+	bool _link_quality_valid{false};
+
+	// EKF fusion status: GHBFR (upper=true, lower=false)
+	bool _cs_gnss_pos{false};
+	bool _cs_gps_hgt{false};
+	bool _cs_baro_hgt{false};
+	bool _cs_opt_flow{false};
+	bool _cs_rng_hgt{false};
+	bool _ekf_fusion_status_valid{false};
+
+	// throttle
+	float _throttle_sp{0.f};
+	bool _throttle_valid{false};
+	uint64_t _throttle_timestamp{0};
+	uint8_t _vehicle_type{vehicle_status_s::VEHICLE_TYPE_UNSPECIFIED};
 
 	// flight time
 	uint8_t _arming_state{0};

@@ -1004,6 +1004,11 @@ GPS::run()
 				receive_timeout = TIMEOUT_1HZ;
 			}
 
+			if (_mode == gps_driver_mode_t::NMEA) {
+				/* Many NMEA receivers output a POS/VEL solution at 1 Hz. */
+				receive_timeout = TIMEOUT_1HZ;
+			}
+
 			if (_dump_communication_mode != gps_dump_comm_mode_t::Disabled) {
 				/* Dumping the RTCM3/UBX data requires additional parsing and storing of data via uORB.
 				 * Without additional time this can lead to timeouts. */

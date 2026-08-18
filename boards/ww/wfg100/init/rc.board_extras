@@ -1,0 +1,17 @@
+#!/bin/sh
+#
+# board specific extras init
+#------------------------------------------------------------------------------
+
+# if ! param compare OSD_ATXXXX_CFG 0
+# then
+# 	atxxxx start -s
+# fi
+
+atxxxx start -s
+
+param set-default UAVCAN_ENABLE 0
+param set-default CYPHAL_ENABLE 0
+
+# DShot telemetry is always on UART7
+# dshot telemetry /dev/ttyS5

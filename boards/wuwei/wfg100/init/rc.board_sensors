@@ -1,0 +1,30 @@
+#!/bin/sh
+# board specific sensors init for Wuwei WFG100 (all sensors onboard)
+
+# 1) ADC（电压/电流/RSSI/差压）
+board_adc start
+
+# 2) IMU1：SPI1 上，优先 ICM42605，失败回退 ICM42688P（Yaw270）
+if ! icm42688p  -R 14 -b 1 -s start
+then
+    icm42688p -R 14 -b 1 -s start
+fi
+
+# 3) IMU2：SPI4 上，优先 ICM42688P，失败回退 ICM20602（Yaw270）
+if ! icm42688p -R 14 -b 4 -s start
+then
+    ICM42605  -R 14 -b 4 -s start
+fi
+
+# 4) 气压计（板载 I2C，地址 0x76）：优先 DPS310，失败回退 SPL06
+if ! dps310 -I -a 0x76 start
+then
+    spl06  -I -a 0x76 start
+fi
+
+# 5) 罗盘（板载 I2C）：优先 IST8310，失败回退 QMC5883L（常见地址 0x0D）
+if ! ist8310 -R 14 -I start
+then
+    qmc5883l -I -a 0x0D start
+fi
+

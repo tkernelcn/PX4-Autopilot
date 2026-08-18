@@ -1,0 +1,5 @@
+menuconfig DRIVERS_IMU_WW_W689
+	bool "w689"
+	default n
+	---help---
+		Enable support for W689 IMU
