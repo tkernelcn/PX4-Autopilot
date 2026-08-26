@@ -10,16 +10,10 @@ echo "[esp32s3] board defaults"
 
 # USB /dev/ttyACM0 = NuttX NSH only. MAVLink on ttyS2 (MAV_0_CONFIG=102).
 # rcS USB MAVLink is skipped: cdcacm_autostart is not in default.px4board.
+# Only set-default: do not overwrite user values stored in /fs/mtd_params.
 
-# Avoid rcS param-version reboot loop on empty /fs/mtd_params after erase-flash.
-param set SYS_PARAM_VER 1
-param set SYS_AUTOCONFIG 0
-
-# Override stale MTD values from minboot bring-up.
-param set SYS_AUTOSTART 4001
-param set EKF2_EN 1
-param set ATT_EN 0
-
+param set-default SYS_PARAM_VER 1
+param set-default SYS_AUTOCONFIG 0
 param set-default SYS_AUTOSTART 4001
 param set-default MAV_0_CONFIG 102
 param set-default EKF2_EN 1
@@ -65,7 +59,6 @@ param set-default SYS_HAS_MAG 1
 param set-default SYS_HAS_BARO 1
 
 # On-board IST8310 via rc.board_sensors; skip rc.sensors external I2C mag probe.
-param set SENS_EXT_I2C_PRB 0
 param set-default SENS_EXT_I2C_PRB 0
 
 param set-default MBE_ENABLE 1

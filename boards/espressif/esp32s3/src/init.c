@@ -62,7 +62,6 @@
 
 #include <px4_platform/board_dma_alloc.h>
 #include <px4_platform_common/init.h>
-#include <parameters/param.h>
 #include <px4_arch/io_timer.h>
 
 #include <systemlib/px4_macros.h>
@@ -116,7 +115,6 @@ static void board_pwm_gpio_init(void)
 #endif
 }
 
-#if BOARD_BISECT_LEVEL >= 4
 #ifdef CONFIG_ESP32S3_SPI2
 static struct spi_dev_s *spi2;
 #endif
@@ -124,19 +122,16 @@ static struct spi_dev_s *spi2;
 #ifdef CONFIG_ESP32S3_SPI3
 static struct spi_dev_s *spi3;
 #endif
-#endif
 
 __EXPORT int board_app_initialize(uintptr_t arg)
 {
 	UNUSED(arg);
 
-	/* Hardware first (same order as the known-good 1.16 bring-up).
-	 * px4_platform_init() used to run before SPI/MTD and immediately
-	 * issued an I2C general-call; that path LoadProhibited if the bus
-	 * handle was NULL, before any USB console bytes were sent.
+	/* Hardware first. px4_platform_init() used to run before SPI/MTD and
+	 * immediately issued an I2C general-call; that path LoadProhibited if
+	 * the bus handle was NULL, before any USB console bytes were sent.
 	 */
 
-#if BOARD_BISECT_LEVEL >= 3
 	if (board_dma_alloc_init() < 0) {
 		/* silent */
 	}
@@ -146,9 +141,7 @@ __EXPORT int board_app_initialize(uintptr_t arg)
 	board_pwm_gpio_init();
 
 	esp32s3_spiinitialize();
-#endif
 
-#if BOARD_BISECT_LEVEL >= 4
 #ifdef CONFIG_ESP32S3_SPI2
 	spi2 = esp32s3_spibus_initialize(2);
 
@@ -170,9 +163,8 @@ __EXPORT int board_app_initialize(uintptr_t arg)
 	}
 
 #endif
-#endif /* BOARD_BISECT_LEVEL >= 4 */
 
-#if BOARD_BISECT_LEVEL >= 5 && defined(BOARD_ENABLE_MTD_PARAMS) && BOARD_ENABLE_MTD_PARAMS
+#if defined(BOARD_ENABLE_MTD_PARAMS) && BOARD_ENABLE_MTD_PARAMS
 #ifdef CONFIG_ESP32S3_SPIFLASH
 
 /* Params partition: must match boot/partitions.csv and src/mtd.cpp. */
@@ -239,18 +231,11 @@ __EXPORT int board_app_initialize(uintptr_t arg)
 		}
 	}
 #endif
-#endif /* BOARD_BISECT_LEVEL >= 5 */
+#endif /* BOARD_ENABLE_MTD_PARAMS */
 
-#if BOARD_BISECT_LEVEL >= 2
 	usleep(100000);
 	px4_platform_init();
-	/* Do not write SPI flash from lpwork until S3 cache guard is proven. */
-	param_control_autosave(false);
-#endif
-
-#if BOARD_BISECT_LEVEL >= 6
 	px4_platform_configure();
-#endif
 
 	return OK;
 }

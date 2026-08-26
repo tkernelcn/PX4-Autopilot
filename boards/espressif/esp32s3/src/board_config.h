@@ -39,10 +39,6 @@
 
 #pragma once
 
-#ifndef BOARD_BISECT_LEVEL
-#define BOARD_BISECT_LEVEL 99
-#endif
-
 #include <px4_platform_common/px4_config.h>
 #include <nuttx/compiler.h>
 #include <stdint.h>
