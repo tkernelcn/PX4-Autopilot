@@ -1,0 +1,5 @@
+INCLUDE "esp32s3_rom.ld"
+INCLUDE "esp32s3_rom_aliases.ld"
+INCLUDE "esp32s3_peripherals.ld"
+INCLUDE "flat_memory.ld"
+INCLUDE "legacy_sections.ld"

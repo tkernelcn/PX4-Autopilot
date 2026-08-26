@@ -1,0 +1,9 @@
+# ESP32-S3 4MB flash layout for espressif_esp32s3_default
+# factory must be 2M: current PX4 image is ~1.7MB (upstream default is only 1M).
+# params stays at 0x310000 to match init.c BOARD_MTD_PARAMS_OFFSET.
+#
+# Name,   Type, SubType, Offset,   Size,  Flags
+nvs,      data, nvs,     0x9000,   0x6000,
+phy_init, data, phy,     0xf000,   0x1000,
+factory,  app,  factory, 0x10000,  2M,
+params,   data, 0x99,    0x310000, 64K,

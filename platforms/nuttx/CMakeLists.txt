@@ -339,6 +339,126 @@ if(CONFIG_ARCH_CHIP_ESP32)
 			COMMAND du ${PX4_BINARY_OUTPUT} -h
 			DEPENDS px4
 		)
+elseif(CONFIG_ARCH_CHIP_ESP32S3)
+
+	# ESP32-S3 uses the same Xtensa "head" objects as ESP32, but the chip
+	# start file is esp32s3_start.o. These are not archived into libarch.a
+	# and must be linked explicitly, otherwise --gc-sections drops all code
+	# and objcopy produces a 0-byte .bin.
+	set(PX4_STARTUP_DIR ${PX4_SOURCE_DIR}/platforms/nuttx/NuttX/nuttx/arch/xtensa/src)
+
+	set(NUTTX_STARTUP_OBJS
+		${PX4_STARTUP_DIR}/xtensa_vectors.o
+		${PX4_STARTUP_DIR}/xtensa_window_vector.o
+		${PX4_STARTUP_DIR}/xtensa_windowspill.o
+		${PX4_STARTUP_DIR}/xtensa_int_handlers.o
+		${PX4_STARTUP_DIR}/xtensa_user_handler.o
+		${PX4_STARTUP_DIR}/xtensa_initialize.o
+		${PX4_STARTUP_DIR}/xtensa_initialstate.o
+		${PX4_STARTUP_DIR}/esp32s3_start.o
+		${PX4_STARTUP_DIR}/esp32s3_wdt.o
+	)
+
+	# Produced by the NuttX arch build before px4 links. GENERATED avoids
+	# CMake requiring the objects at configure time; do not touch/create
+	# empty files in the NuttX source tree.
+	set_source_files_properties(
+		${NUTTX_STARTUP_OBJS}
+		PROPERTIES
+		EXTERNAL_OBJECT true
+		GENERATED true)
+
+	target_link_libraries(nuttx_c INTERFACE nuttx_sched) # nxsched_get_streams
+
+	target_link_libraries(nuttx_arch
+		INTERFACE
+			drivers_board
+			arch_hrt
+			arch_board_reset
+	)
+
+	target_link_libraries(nuttx_c INTERFACE nuttx_drivers)
+	target_link_libraries(nuttx_drivers INTERFACE nuttx_c)
+	target_link_libraries(nuttx_xx INTERFACE nuttx_c)
+	target_link_libraries(nuttx_fs INTERFACE nuttx_c)
+
+	target_link_libraries(px4 PRIVATE
+		-nostartfiles
+		-nodefaultlibs
+		-nostdlib
+		-nostdinc++
+		-mlongcalls
+		-fno-exceptions
+		-fno-rtti
+		-Wl,--cref
+		-Wl,--script=${NUTTX_CONFIG_DIR_CYG}/scripts/${SCRIPT_PREFIX}script.ld
+		-L${NUTTX_CONFIG_DIR_CYG}/scripts
+		-Wl,-Map=${PX4_CONFIG}.map
+		-Wl,--gc-sections
+
+		-Wl,--start-group
+			${nuttx_libs}
+			${NUTTX_STARTUP_OBJS}
+		-Wl,--end-group
+
+		m
+		gcc
+		)
+
+		if(NOT USE_LD_GOLD)
+			target_link_libraries(px4 PRIVATE -Wl,--print-memory-usage)
+		endif()
+
+		target_link_libraries(px4 PRIVATE ${module_libraries})
+		if(config_romfs_root)
+			add_subdirectory(${PX4_SOURCE_DIR}/ROMFS ${PX4_BINARY_DIR}/ROMFS)
+			target_link_libraries(px4 PRIVATE romfs)
+		endif()
+
+		# Mirror NuttX tools/esp32s3/Config.mk: embed flash params in the .bin image header.
+		if(CONFIG_ESP32S3_FLASH_4M)
+			set(ESP32S3_ESPTOOL_FLASH_SIZE 4MB)
+		elseif(CONFIG_ESP32S3_FLASH_8M)
+			set(ESP32S3_ESPTOOL_FLASH_SIZE 8MB)
+		elseif(CONFIG_ESP32S3_FLASH_16M)
+			set(ESP32S3_ESPTOOL_FLASH_SIZE 16MB)
+		endif()
+
+		if(CONFIG_ESP32S3_FLASH_MODE_DIO)
+			set(ESP32S3_ESPTOOL_FLASH_MODE dio)
+		elseif(CONFIG_ESP32S3_FLASH_MODE_DOUT)
+			set(ESP32S3_ESPTOOL_FLASH_MODE dout)
+		elseif(CONFIG_ESP32S3_FLASH_MODE_QIO)
+			set(ESP32S3_ESPTOOL_FLASH_MODE qio)
+		elseif(CONFIG_ESP32S3_FLASH_MODE_QOUT)
+			set(ESP32S3_ESPTOOL_FLASH_MODE qout)
+		endif()
+
+		if(CONFIG_ESP32S3_FLASH_FREQ_120M)
+			# esptool v5 elf2image rejects 120m; image header uses 80m (highest supported).
+			# NuttX still configures 120 MHz flash at runtime via CONFIG_ESP32S3_FLASH_FREQ_120M.
+			set(ESP32S3_ESPTOOL_FLASH_FREQ 80m)
+		elseif(CONFIG_ESP32S3_FLASH_FREQ_80M)
+			set(ESP32S3_ESPTOOL_FLASH_FREQ 80m)
+		elseif(CONFIG_ESP32S3_FLASH_FREQ_40M)
+			set(ESP32S3_ESPTOOL_FLASH_FREQ 40m)
+		elseif(CONFIG_ESP32S3_FLASH_FREQ_20M)
+			set(ESP32S3_ESPTOOL_FLASH_FREQ 20m)
+		endif()
+
+		if(NOT ESP32S3_ESPTOOL_FLASH_SIZE OR NOT ESP32S3_ESPTOOL_FLASH_MODE OR NOT ESP32S3_ESPTOOL_FLASH_FREQ)
+			message(FATAL_ERROR "ESP32-S3 flash size/mode/freq not configured in NuttX .config")
+		endif()
+
+		add_custom_command(OUTPUT ${PX4_BINARY_OUTPUT}
+			COMMAND esptool --chip esp32s3 elf2image
+				--flash-mode ${ESP32S3_ESPTOOL_FLASH_MODE}
+				--flash-freq ${ESP32S3_ESPTOOL_FLASH_FREQ}
+				--flash-size ${ESP32S3_ESPTOOL_FLASH_SIZE}
+				-o ${PX4_BINARY_OUTPUT} ${PX4_BINARY_DIR_REL}/${FW_NAME}
+			COMMAND du ${PX4_BINARY_OUTPUT} -h
+			DEPENDS px4
+		)
 else()
 
 	target_link_libraries(nuttx_c INTERFACE nuttx_sched) # nxsched_get_streams

@@ -1,0 +1,14 @@
+#!/bin/sh
+#
+# ESP32-S3 board extras (sourced late in rcS after sensors)
+#------------------------------------------------------------------------------
+
+# NEVER on USB NSH console:
+# mavlink start -d /dev/ttyACM0 ...
+
+# MAVLink GCS is started via rc.serial (MAV_0_CONFIG=102 -> /dev/ttyS2).
+# Uncomment for manual override if rc.serial is disabled:
+# mavlink start -d /dev/ttyS2 -b 57600 -m normal -x
+
+# WiFi MAVLink (requires wlan driver):
+# mavlink start -u 14556 -p -r 100000 -n wlan0 -x

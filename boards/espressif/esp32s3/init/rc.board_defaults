@@ -1,0 +1,95 @@
+#!/bin/sh
+#
+# ESP32-S3 board defaults (standard rcS path)
+# USB /dev/ttyACM0 = NSH console only. MAVLink via rc.serial (MAV_0_CONFIG=102 -> ttyS2).
+# Default vehicle: Quad X (SYS_AUTOSTART=4001). FW / Rover: change SYS_AUTOSTART in QGC.
+# See: boards/espressif/esp32s3/docs/flash_and_hardware.md
+#------------------------------------------------------------------------------
+
+echo "[esp32s3] board defaults"
+
+# USB /dev/ttyACM0 = NuttX NSH only. MAVLink on ttyS2 (MAV_0_CONFIG=102).
+# rcS USB MAVLink is skipped: cdcacm_autostart is not in default.px4board.
+
+# Avoid rcS param-version reboot loop on empty /fs/mtd_params after erase-flash.
+param set SYS_PARAM_VER 1
+param set SYS_AUTOCONFIG 0
+
+# Override stale MTD values from minboot bring-up.
+param set SYS_AUTOSTART 4001
+param set EKF2_EN 1
+param set ATT_EN 0
+
+param set-default SYS_AUTOSTART 4001
+param set-default MAV_0_CONFIG 102
+param set-default EKF2_EN 1
+param set-default ATT_EN 0
+param set-default MAV_1_CONFIG 0
+param set-default MAV_2_CONFIG 0
+
+# No SD card: RAM dataman + mavlink logger.
+param set-default SYS_DM_BACKEND 1
+param set-default SDLOG_BACKEND 2
+
+param set-default BAT1_V_DIV 1
+param set-default BAT1_A_PER_V 1
+param set-default BAT1_V_EMPTY 3.3
+param set-default BAT1_V_CHARGED 4.2
+param set-default CBRK_SUPPLY_CHK 894281
+param set-default COM_POWER_COUNT 0
+param set-default COM_ARM_HFLT_CHK 0
+param set-default COM_ARM_SDCARD 0
+
+param set-default MAV_TYPE 2
+
+param set-default PWM_MAIN_MIN1 0
+param set-default PWM_MAIN_MIN2 0
+param set-default PWM_MAIN_MIN3 0
+param set-default PWM_MAIN_MIN4 0
+
+param set-default PWM_MAIN_DIS1 0
+param set-default PWM_MAIN_DIS2 0
+param set-default PWM_MAIN_DIS3 0
+param set-default PWM_MAIN_DIS4 0
+
+param set-default PWM_MAIN_FUNC1 101
+param set-default PWM_MAIN_FUNC2 103
+param set-default PWM_MAIN_FUNC3 102
+param set-default PWM_MAIN_FUNC4 104
+param set-default PWM_MAIN_MAX1 2100
+param set-default PWM_MAIN_MAX2 2100
+param set-default PWM_MAIN_MAX3 2100
+param set-default PWM_MAIN_MAX4 2100
+
+param set-default SYS_HAS_MAG 1
+param set-default SYS_HAS_BARO 1
+
+# On-board IST8310 via rc.board_sensors; skip rc.sensors external I2C mag probe.
+param set SENS_EXT_I2C_PRB 0
+param set-default SENS_EXT_I2C_PRB 0
+
+param set-default MBE_ENABLE 1
+param set-default IMU_GYRO_CAL_EN 1
+
+# GPS: set GPS_1_CONFIG=201 in QGC when wired to /dev/ttyS0.
+param set-default GPS_1_CONFIG 0
+
+param set-default NAV_RCL_ACT 6
+
+param set-default EKF2_HGT_REF 2
+param set-default EKF2_OF_CTRL 0
+param set-default EKF2_RNG_CTRL 0
+
+# RC on TELEM1 (UART1 / ttyS1). Default: rc_input (Auto protocol); CRSF driver off.
+# Enable dedicated CRSF in QGC: RC_CRSF_PRT_CFG=101 and RC_PORT_CONFIG=0.
+param set-default RC_CRSF_PRT_CFG 0
+param set-default RC_PORT_CONFIG 101
+param set-default SER_TEL1_BAUD 420000
+param set-default SER_TEL2_BAUD 115200
+
+param set-default IMU_GYRO_RATEMAX 400
+param set-default IMU_INTEG_RATE 100
+param set-default COM_CPU_MAX -1
+param set-default COM_RAM_MAX -1
+param set-default BAT1_SOURCE 1
+param set-default BAT1_N_CELLS 1

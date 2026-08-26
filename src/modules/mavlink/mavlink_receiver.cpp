@@ -70,6 +70,10 @@
 #define MAVLINK_RECEIVER_NET_ADDED_STACK 0
 #endif
 
+#ifndef BOARD_MAVLINK_RECEIVER_STACK_EXTRA
+#define BOARD_MAVLINK_RECEIVER_STACK_EXTRA 0
+#endif
+
 MavlinkReceiver::~MavlinkReceiver()
 {
 	delete _tune_publisher;
@@ -3508,7 +3512,8 @@ void MavlinkReceiver::start()
 	(void)pthread_attr_setschedparam(&receiveloop_attr, &param);
 
 	pthread_attr_setstacksize(&receiveloop_attr,
-				  PX4_STACK_ADJUSTED(sizeof(MavlinkReceiver) + 2840 + MAVLINK_RECEIVER_NET_ADDED_STACK));
+				  PX4_STACK_ADJUSTED(sizeof(MavlinkReceiver) + 2840 + MAVLINK_RECEIVER_NET_ADDED_STACK
+						     + BOARD_MAVLINK_RECEIVER_STACK_EXTRA));
 
 	pthread_create(&_thread, &receiveloop_attr, MavlinkReceiver::start_trampoline, (void *)this);
 

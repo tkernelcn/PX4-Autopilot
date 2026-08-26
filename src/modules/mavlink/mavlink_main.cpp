@@ -76,6 +76,10 @@
 #define MAVLINK_NET_ADDED_STACK 0
 #endif
 
+#ifndef BOARD_MAVLINK_MAIN_STACK_SIZE
+#define BOARD_MAVLINK_MAIN_STACK_SIZE 2896
+#endif
+
 #define FLOW_CONTROL_DISABLE_THRESHOLD 40              ///< picked so that some messages still would fit it.
 #define MAX_DATA_RATE                  10000000        ///< max data rate in bytes/s
 #define MAIN_LOOP_DELAY                10000           ///< 100 Hz @ 1000 bytes/s data rate
@@ -2943,7 +2947,7 @@ Mavlink::start(int argc, char *argv[])
 	px4_task_spawn_cmd("mavlink_main",
 			   SCHED_DEFAULT,
 			   SCHED_PRIORITY_DEFAULT,
-			   PX4_STACK_ADJUSTED(2896) + MAVLINK_NET_ADDED_STACK,
+			   PX4_STACK_ADJUSTED(BOARD_MAVLINK_MAIN_STACK_SIZE) + MAVLINK_NET_ADDED_STACK,
 			   (px4_main_t)&Mavlink::start_helper,
 			   (char *const *)argv);
 

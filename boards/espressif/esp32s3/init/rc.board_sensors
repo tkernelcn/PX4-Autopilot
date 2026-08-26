@@ -1,0 +1,35 @@
+#!/bin/sh
+#
+# ESP32-S3 board sensors (sourced from rcS via rc.board_sensors)
+# BMI088: SPI2; IST8310 + BMP280: I2C1 (SCL=15 SDA=16)
+# See: boards/espressif/esp32s3/docs/flash_and_hardware.md
+#------------------------------------------------------------------------------
+
+echo "[esp32s3] board sensors"
+
+board_adc start
+
+if ! bmi088 -A -R 0 -s start
+then
+	echo "[board_sensors] BMI088 accel not found on SPI2"
+fi
+if ! bmi088 -G -R 0 -s start
+then
+	echo "[board_sensors] BMI088 gyro not found on SPI2"
+fi
+
+if param compare -s SYS_HAS_MAG 1
+then
+	if ! ist8310 start -I -b 1 -a 14 -R 0
+	then
+		echo "[board_sensors] IST8310 not found on I2C1"
+	fi
+fi
+
+if param compare -s SYS_HAS_BARO 1
+then
+	if ! bmp280 start -I -b 1
+	then
+		echo "[board_sensors] BMP280 not found on I2C1"
+	fi
+fi
