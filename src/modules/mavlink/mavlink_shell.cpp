@@ -59,6 +59,10 @@
 #include <asm/socket.h>
 #endif
 
+#ifndef BOARD_MAVLINK_SHELL_STACK_SIZE
+#define BOARD_MAVLINK_SHELL_STACK_SIZE 2048
+#endif
+
 MavlinkShell::~MavlinkShell()
 {
 	//closing the pipes will stop the thread as well
@@ -144,7 +148,7 @@ int MavlinkShell::start()
 		_task = px4_task_spawn_cmd("mavlink_shell",
 					   SCHED_DEFAULT,
 					   SCHED_PRIORITY_DEFAULT,
-					   2048,
+					   PX4_STACK_ADJUSTED(BOARD_MAVLINK_SHELL_STACK_SIZE),
 					   &MavlinkShell::shell_start_thread,
 #ifdef __PX4_POSIX
 					   argv);
