@@ -9,21 +9,21 @@ echo "[esp32s3] board sensors"
 
 board_adc start
 
-if ! bmi088 -A -R 0 -s start
+if ! bmi088 -A -R 10 -s start
 then
 	echo "[board_sensors] BMI088 accel not found on SPI2"
 fi
-if ! bmi088 -G -R 0 -s start
+if ! bmi088 -G -R 10 -s start
 then
 	echo "[board_sensors] BMI088 gyro not found on SPI2"
 fi
 
 if param compare -s SYS_HAS_MAG 1
 then
-	if ! ist8310 start -I -b 1 -a 14 -R 0
-	then
-		echo "[board_sensors] IST8310 not found on I2C1"
-	fi
+if ! ist8310 start -I -b 1 -a 14 -R 8
+then
+	echo "[board_sensors] IST8310 not found on I2C1"
+fi
 fi
 
 if param compare -s SYS_HAS_BARO 1
