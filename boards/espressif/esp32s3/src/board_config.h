@@ -43,12 +43,14 @@
 #include <nuttx/compiler.h>
 #include <stdint.h>
 
-/* LEDs — GPIO6 = state (blink), GPIO7 = armed (solid) */
+/* LEDs - active-low; enable input readback for led_toggle(). */
 
-#define GPIO_LED_BLUE                (GPIO_OUTPUT|7)
-#define GPIO_LED_GREEN               (GPIO_OUTPUT|6)
+#define GPIO_LED_BLUE                (GPIO_INPUT|GPIO_OUTPUT|3)
+#define GPIO_LED_RED                 (GPIO_INPUT|GPIO_OUTPUT|4)
+#define GPIO_LED_GREEN               (GPIO_INPUT|GPIO_OUTPUT|16)
 
 #define BOARD_HAS_CONTROL_STATUS_LEDS 1
+#define BOARD_OVERLOAD_LED     LED_RED
 #define BOARD_ARMED_LED        LED_BLUE
 #define BOARD_ARMED_STATE_LED  LED_GREEN
 
@@ -72,9 +74,10 @@
 #define BOARD_SPI_BUS_MAX_BUS_ITEMS 4
 
 /* SPI2 BMI088: SPI::CS{n} is the GPIO number (per-device CS via CONFIG_ESP32S3_SPI_UDCS). */
-#define BOARD_SPI2_CS_BMI088_ACCEL  1
-#define BOARD_SPI2_CS_BMI088_GYRO   38
-#define BOARD_SPI2_DRDY_BMI088      40
+#define BOARD_SPI2_CS_BMI088_ACCEL      47
+#define BOARD_SPI2_CS_BMI088_GYRO       42
+#define BOARD_SPI2_DRDY_BMI088_ACCEL    45 /* BMI088 INT1: accel FIFO watermark */
+#define BOARD_SPI2_DRDY_BMI088_GYRO     41 /* BMI088 INT3: gyro FIFO interrupt */
 
 #define ADC_BATTERY_VOLTAGE_CHANNEL   4
 #define ADC_BATTERY_CURRENT_CHANNEL  2
@@ -88,15 +91,18 @@
 
 #define ADC_V5_V_FULL_SCALE (7.17f)
 
-#define GPIO_HEATER_OUTPUT (GPIO_OUTPUT | 46)
+#define GPIO_SPI_PGA_CS                (GPIO_OUTPUT | 46) /* MCP6S26T-I/ST CS */
+#define GPIO_SPI_ADC_CS                (GPIO_OUTPUT | 5)  /* AD4002 CS */
+
+#define GPIO_HEATER_OUTPUT (GPIO_OUTPUT | 18)
 #define HEATER_OUTPUT_EN(on_true) px4_arch_gpiowrite(GPIO_HEATER_OUTPUT, (on_true))
 
-/* PWM outputs (LEDC — see platforms/nuttx/.../esp32s3/io_pins/pwm_servo.c) */
+/* PWM outputs (LEDC) */
 #define BOARD_PWM_TIM0_CHANNELS        4
-#define BOARD_PWM_CHANNEL0_PIN         10
-#define BOARD_PWM_CHANNEL1_PIN         9
-#define BOARD_PWM_CHANNEL2_PIN         37
-#define BOARD_PWM_CHANNEL3_PIN         13
+#define BOARD_PWM_CHANNEL0_PIN         8
+#define BOARD_PWM_CHANNEL1_PIN         38
+#define BOARD_PWM_CHANNEL2_PIN         11
+#define BOARD_PWM_CHANNEL3_PIN         1
 
 #define BOARD_NUM_IO_TIMERS            1
 #define DIRECT_PWM_OUTPUT_CHANNELS     4

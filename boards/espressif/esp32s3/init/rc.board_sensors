@@ -1,7 +1,7 @@
 #!/bin/sh
 #
 # ESP32-S3 board sensors (sourced from rcS via rc.board_sensors)
-# BMI088: SPI2; IST8310 + BMP280: I2C1 (SCL=15 SDA=16)
+# BMI088: SPI2; IST8310 + BMP280: I2C1 (SCL=7 SDA=6)
 # See: boards/espressif/esp32s3/docs/flash_and_hardware.md
 #------------------------------------------------------------------------------
 

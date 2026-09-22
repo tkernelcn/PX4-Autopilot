@@ -46,12 +46,18 @@
 static const px4_spi_bus_t *_spi_bus2;
 static const px4_spi_bus_t *_spi_bus3;
 
-static void spi_bus_configgpio_cs(const px4_spi_bus_t *bus)
+static void spi_bus_configgpio(const px4_spi_bus_t *bus)
 {
 	for (int i = 0; i < SPI_BUS_MAX_DEVICES; ++i) {
 		if (bus->devices[i].cs_gpio != 0) {
-			px4_arch_configgpio(bus->devices[i].cs_gpio);
+			/* Deselect before enabling the output to avoid a low pulse. */
 			px4_arch_gpiowrite(bus->devices[i].cs_gpio, 1);
+			px4_arch_configgpio(bus->devices[i].cs_gpio);
+		}
+
+		if (bus->devices[i].drdy_gpio != 0) {
+			/* Configure the input before the driver enables its interrupt. */
+			px4_arch_configgpio(bus->devices[i].drdy_gpio);
 		}
 	}
 }
@@ -72,8 +78,8 @@ __EXPORT void esp32s3_spiinitialize()
 	ASSERT(_spi_bus2);
 
 	if (board_has_bus(BOARD_SPI_BUS, 2)) {
-		syslog(LOG_DEBUG, "spi bus configgpio cs %i\n", _spi_bus2->bus);
-		spi_bus_configgpio_cs(_spi_bus2);
+		syslog(LOG_DEBUG, "spi bus configgpio %i\n", _spi_bus2->bus);
+		spi_bus_configgpio(_spi_bus2);
 	}
 
 #endif // CONFIG_ESP32S3_SPI2
@@ -82,8 +88,8 @@ __EXPORT void esp32s3_spiinitialize()
 	ASSERT(_spi_bus3);
 
 	if (board_has_bus(BOARD_SPI_BUS, 3)) {
-		syslog(LOG_DEBUG, "spi bus configgpio cs %i\n", _spi_bus3->bus);
-		spi_bus_configgpio_cs(_spi_bus3);
+		syslog(LOG_DEBUG, "spi bus configgpio %i\n", _spi_bus3->bus);
+		spi_bus_configgpio(_spi_bus3);
 	}
 
 #endif // CONFIG_ESP32S3_SPI3

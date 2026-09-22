@@ -189,14 +189,14 @@ boards/espressif/esp32s3/tools/run_test.sh   # 编译 + 烧写 + 50× help/ps/ca
 |-------------|----------|-------------------|
 | USB Serial（CDC ACM） | **已支持** | `/dev/ttyACM0`，**仅 NSH 控制台**（勿启 MAVLink） |
 | UART0 / GPS1 | **已支持** | `/dev/ttyS0`，TX=**43**，RX=**44**；**GPS 硬件口**（QGC 配 `GPS_1_CONFIG=201`） |
-| UART1 / TELEM1 | **已支持** | `/dev/ttyS1`，TX=**17**，RX=**18**；默认 **CRSF RC** |
-| UART2 / TELEM2 | **已支持** | `/dev/ttyS2`，TX=**8**，RX=**3**；**MAVLink GCS** |
-| I2C1 | **已支持** | SCL=15，SDA=16 |
-| SPI2 | **已支持** | CLK=2，CS=1，MISO=41，MOSI=42 |
-| PWM（LEDC，PX4 寄存器层） | **已支持** | GPIO 10 / 9 / 37 / 13 |
+| UART1 / TELEM1 | **已支持** | `/dev/ttyS1`，TX=**39**，RX=**40**；默认 **CRSF RC** |
+| UART2 / TELEM2 | **已支持** | `/dev/ttyS2`，TX=**21**，RX=**9**；**MAVLink GCS** |
+| I2C1 | **已支持** | SCL=7，SDA=6 |
+| SPI2 | **已支持** | CLK=48，CS_ACC=47，CS_GYR=42，MISO=13，MOSI=12 |
+| PWM（LEDC，PX4 寄存器层） | **已支持** | GPIO 8 / 38 / 11 / 1 |
 | SPI Flash / MTD 参数 | **已支持** | `/fs/mtd_params`，`0x310000` / 64KB |
 | HRT | **已支持** | Timer Group 1 / Timer 0 |
-| 板载 LED | **已支持** | GPIO12（蓝） |
+| 板载 LED | **已支持** | 蓝=GPIO3，红=GPIO4，绿=GPIO16（均低电平点亮） |
 | CRSF RC | **已配置** | `RC_PORT_CONFIG=101`（TELEM1 / ttyS1） |
 | WiFi / `wlan0` | **未支持** | NuttX 10.3 无可用 WiFi |
 | SPI3 / SDMMC / 片内 ADC / USB OTG / CAN | **未支持** | 未接入 |
@@ -207,8 +207,8 @@ boards/espressif/esp32s3/tools/run_test.sh   # 编译 + 烧写 + 50× help/ps/ca
 |------|----------|------|----------|----------|
 | USB CDC | `/dev/ttyACM0` | 内置 USB | **NSH 控制台** | — |
 | UART0 | `/dev/ttyS0` | TX **43**，RX **44** | **GPS 硬件口** | QGC: `GPS_1_CONFIG=201` |
-| UART1 | `/dev/ttyS1` | TX **17**，RX **18** | **CRSF 接收机**（TELEM1） | `RC_CRSF_PRT_CFG=101` |
-| UART2 | `/dev/ttyS2` | TX **8**，RX **3** | **MAVLink GCS**（TELEM2） | `MAV_0_CONFIG=102` |
+| UART1 | `/dev/ttyS1` | TX **39**，RX **40** | **CRSF 接收机**（TELEM1） | `RC_CRSF_PRT_CFG=101` |
+| UART2 | `/dev/ttyS2` | TX **21**，RX **9** | **MAVLink GCS**（TELEM2） | `MAV_0_CONFIG=102` |
 
 GPS 接线（3.3 V，u-blox 等）：
 
@@ -226,8 +226,8 @@ CRSF 接线（3.3 V）：
 
 | 接收机 | ESP32-S3 |
 |--------|----------|
-| TX | GPIO **18**（UART1 RX） |
-| RX（遥测可选） | GPIO **17**（UART1 TX） |
+| TX | GPIO **40**（UART1 RX） |
+| RX（遥测可选） | GPIO **39**（UART1 TX） |
 | GND | GND |
 
 驱动在打开串口后自行设波特率 **420000**（`RC_CRSF_PRT_CFG=101`）。不要把 GPS 和 CRSF 配到同一串口。
@@ -238,19 +238,22 @@ MAVLink GCS 默认走 **TELEM2**（`/dev/ttyS2`，`MAV_0_CONFIG=102`），**不�
 
 | 信号 | GPIO |
 |------|------|
-| SCL | **15** |
-| SDA | **16** |
+| SCL | **7** |
+| SDA | **6** |
 
 ### 2.4 SPI2（BMI088 IMU）
 
 | 信号 | GPIO | 说明 |
 |------|------|------|
-| CLK | **2** | SPI 时钟 |
-| CS_ACC | **1** | BMI088 加速度计片选（GPIO，`board_config.h`） |
-| CS_GYR | **38** | BMI088 陀螺仪片选（GPIO，`board_config.h`） |
-| MISO | **41** | |
-| MOSI | **42** | |
-| DRDY | **40** | 数据就绪（可选，Acc/Gyr 共用） |
+| CLK | **48** | SPI 时钟 |
+| CS_ACC | **47** | BMI088 加速度计片选（GPIO，`board_config.h`） |
+| CS_GYR | **42** | BMI088 陀螺仪片选（GPIO，`board_config.h`） |
+| MISO | **13** | |
+| MOSI | **12** | |
+| INT1_ACCEL | **45** | BMI088 accel 数据就绪 |
+| INT3_GYRO | **41** | BMI088 gyro 数据就绪 |
+
+`drdy_gpio` 表示数据就绪（Data Ready）中断接入的 MCU 引脚，就是上表的 INT1_ACCEL / INT3_GYRO，不是额外引脚。当前 PX4 BMI088 驱动通过这两路 FIFO 中断调度 SPI 读取，同时保留超时备用读取；未配置中断脚或中断配置失败时，使用周期轮询。板级 SPI 初始化先配置中断输入，驱动启动后再注册下降沿中断。
 
 NuttX：`CONFIG_ESP32S3_SPI_SWCS` + `CONFIG_ESP32S3_SPI_UDCS` 启用后，片选由 `spi.cpp` 设备表里的 **GPIO 号** 逐设备控制（`SPI::CS{n}` = GPIO `n`）。PX4 每总线最多 **6** 个设备（`SPI_BUS_MAX_DEVICES`）。
 
@@ -265,10 +268,10 @@ PX4 设备表（`boards/espressif/esp32s3/src/spi.cpp`）：
 
 | PX4 通道 | 功能参数 | GPIO | 含义 |
 |----------|----------|------|------|
-| MAIN1 | `PWM_MAIN_FUNC1=101` | **10** | Motor 1 |
-| MAIN2 | `PWM_MAIN_FUNC2=103` | **9** | Motor 3 |
-| MAIN3 | `PWM_MAIN_FUNC3=102` | **37** | Motor 2 |
-| MAIN4 | `PWM_MAIN_FUNC4=104` | **13** | Motor 4 |
+| MAIN1 | `PWM_MAIN_FUNC1=101` | **8** | Motor 1 |
+| MAIN2 | `PWM_MAIN_FUNC2=103` | **38** | Motor 3 |
+| MAIN3 | `PWM_MAIN_FUNC3=102` | **11** | Motor 2 |
+| MAIN4 | `PWM_MAIN_FUNC4=104` | **1** | Motor 4 |
 
 脉宽默认仍为 DIS/MIN=0、MAX=2100（电调接入前建议改成 1000/900 一类安全值）。
 
@@ -276,8 +279,10 @@ PX4 设备表（`boards/espressif/esp32s3/src/spi.cpp`）：
 
 | 功能 | GPIO | 状态 |
 |------|------|------|
-| 状态 LED（蓝） | 12 | 已用 |
-| Heater | 46 | 仅定义，未编 heater 驱动 |
+| 状态 LED（蓝 / 红 / 绿） | 3 / 4 / 16 | 已用 |
+| PGA 片选（MCP6S26T-I/ST） | 46 | `GPIO_SPI_PGA_CS`，板级初始化时先预置高电平，再使能输出 |
+| SPI ADC 控制线（AD4002） | 5 | `GPIO_SPI_ADC_CS`，板级初始化时先预置高电平，再使能输出 |
+| Heater | 18 | 仅定义，未编 heater 驱动 |
 
 ---
 
@@ -293,7 +298,7 @@ PX4 设备表（`boards/espressif/esp32s3/src/spi.cpp`）：
 | **BMP280** 气压计 | **I2C** | I2C1 | `bmp280 start -I -b 1` |
 
 - **IMU（BMI088）走 SPI2**，与 I2C 传感器独立。
-- **磁力计 + 气压计共用 I2C1**（SCL=GPIO15，SDA=GPIO16）。
+- **磁力计 + 气压计共用 I2C1**（SCL=GPIO7，SDA=GPIO6）。
 - 启动脚本：`init/rc.board_sensors`（由标准 `rcS` 在传感器阶段调用）。
 
 `default.px4board`（Stage 12 / rcS）启用驱动：
@@ -357,13 +362,17 @@ A：会。`0x310000` 会被擦掉。
 A：正常。用 esptool 烧 `.bin`。
 
 **Q：CRSF 无遥控？**  
-A：确认接收机 TX → GPIO18，3.3 V，`RC_PORT_CONFIG=101`，波特由驱动设为 420000。
+A：确认接收机 TX → GPIO40，3.3 V，`RC_PORT_CONFIG=101`，波特由驱动设为 420000。
 
 **Q：BMI088 报 `no device on bus`？**  
-A：查 **SPI2** 接线（CLK=2, CS_ACC=1, CS_GYR=38, MISO=41, MOSI=42）及 3.3 V；NSH 执行 `bmi088 -A -R 0 -s start` / `bmi088 -G -R 0 -s start` 单独测试。若 PCB 上 Gyr CS 不是 GPIO38，改 `board_config.h` 里 `BOARD_SPI2_CS_BMI088_GYRO`。
+A：查 **SPI2** 接线（CLK=48, CS_ACC=47, CS_GYR=42, MISO=13, MOSI=12, INT1_ACCEL=45, INT3_GYRO=41）及 3.3 V；NSH 执行 `bmi088 -A -R 0 -s start` / `bmi088 -G -R 0 -s start` 单独测试。
 
 **Q：IST8310 / BMP280 找不到？**  
-A：查 **I2C1**（SCL=15, SDA=16）；BMP280 地址通常 0x76 或 0x77，IST8310 为 **0x0E**（`-a 14`）。
+A：查 **I2C1**（SCL=7, SDA=6）；BMP280 地址通常 0x76 或 0x77，IST8310 为 **0x0E**（`-a 14`）。
+
+**Q：PWM 现在是哪四路？**
+
+A：当前 PWM 为 GPIO8 / GPIO38 / GPIO11 / GPIO1，对应 MAIN1–MAIN4；与当前 UART/I2C/SPI 分配不冲突。
 
 ---
 

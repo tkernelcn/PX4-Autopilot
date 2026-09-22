@@ -63,7 +63,7 @@ __END_DECLS
 
 static uint32_t g_ledmap[] = {
 	GPIO_LED_BLUE,    // Indexed by LED_BLUE (0)
-	0,                // Indexed by LED_RED / LED_AMBER (1)
+	GPIO_LED_RED,     // Indexed by LED_RED / LED_AMBER (1)
 	0,                // Indexed by LED_SAFETY (2)
 	GPIO_LED_GREEN,   // Indexed by LED_GREEN (3)
 };
@@ -73,8 +73,8 @@ __EXPORT void led_init(void)
 	/* Configure LED GPIOs for output (active-low: high = off) */
 	for (size_t l = 0; l < (sizeof(g_ledmap) / sizeof(g_ledmap[0])); l++) {
 		if (g_ledmap[l] != 0) {
-			px4_arch_configgpio(g_ledmap[l]);
 			px4_arch_gpiowrite(g_ledmap[l], true);
+			px4_arch_configgpio(g_ledmap[l]);
 		}
 	}
 }

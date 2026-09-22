@@ -115,6 +115,17 @@ static void board_pwm_gpio_init(void)
 #endif
 }
 
+static void board_gpio_default_init(void)
+{
+	//default output high
+	/* Preload the output latches before enabling the chip-select outputs. */
+	px4_arch_gpiowrite(GPIO_SPI_PGA_CS, true);
+	px4_arch_configgpio(GPIO_SPI_PGA_CS);
+
+	px4_arch_gpiowrite(GPIO_SPI_ADC_CS, true);
+	px4_arch_configgpio(GPIO_SPI_ADC_CS);
+}
+
 #ifdef CONFIG_ESP32S3_SPI2
 static struct spi_dev_s *spi2;
 #endif
@@ -136,6 +147,7 @@ __EXPORT int board_app_initialize(uintptr_t arg)
 		/* silent */
 	}
 
+	board_gpio_default_init();
 	led_init();
 	drv_led_start();
 	board_pwm_gpio_init();
