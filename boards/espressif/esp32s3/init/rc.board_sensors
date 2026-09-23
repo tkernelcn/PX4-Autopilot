@@ -7,6 +7,10 @@
 
 echo "[esp32s3] board sensors"
 
+# ESP32-S3 has limited processing capability, limit IMU sampling rate
+param set-default IMU_GYRO_RATEMAX 400
+param set-default IMU_INTEG_RATE 200
+
 board_adc start
 
 if ! bmi088 -A -R 10 -s start
@@ -20,10 +24,10 @@ fi
 
 if param compare -s SYS_HAS_MAG 1
 then
-if ! ist8310 start -I -b 1 -a 14 -R 8
-then
-	echo "[board_sensors] IST8310 not found on I2C1"
-fi
+	if ! ist8310 start -I -b 1 -a 14 -R 8
+	then
+		echo "[board_sensors] IST8310 not found on I2C1"
+	fi
 fi
 
 if param compare -s SYS_HAS_BARO 1
