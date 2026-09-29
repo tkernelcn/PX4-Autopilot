@@ -101,6 +101,11 @@ static inline constexpr px4_spi_bus_t initSPIBus(SPI::Bus bus, const px4_spi_bus
 
 	ret.bus = (int)bus;
 	ret.is_external = false;
+	/* bmi088 -A returns and schedules wq:SPI2 before bmi088 -G probes on the
+	 * shell thread. Those two threads must not touch the controller together;
+	 * a wedged poll loop is SCHED_FIFO and never returns to NSH.
+	 */
+	ret.requires_locking = true;
 
 	if(power_enable.pin == -1)
 	{

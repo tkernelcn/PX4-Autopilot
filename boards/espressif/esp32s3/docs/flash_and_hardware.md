@@ -294,11 +294,11 @@ PX4 设备表（`boards/espressif/esp32s3/src/spi.cpp`）：
 |--------|------|------|----------|
 | **BMI088** 加速度计 | **SPI** | SPI2 | `bmi088 -A -R 0 -s start` |
 | **BMI088** 陀螺仪 | **SPI** | SPI2 | `bmi088 -G -R 0 -s start` |
-| **IST8310** 磁力计 | **I2C** | I2C1 | `ist8310 start -I -b 1 -a 14 -R 0` |
-| **BMP280** 气压计 | **I2C** | I2C1 | `bmp280 start -I -b 1` |
+| **IST8310** 磁力计 | **I2C** | I2C1 | `ist8310 start -I -b 1 -a 12 -R 8`（0x0C；找不到再试 `-a 14`） |
+| **BMP280** 气压计 | **I2C** | I2C1 | `bmp280 start -I -b 1`（0x76；找不到再试 `-a 0x77`） |
 
 - **IMU（BMI088）走 SPI2**，与 I2C 传感器独立。
-- **磁力计 + 气压计共用 I2C1**（SCL=GPIO7，SDA=GPIO6）。
+- **磁力计 + 气压计共用 I2C1**（SCL=GPIO7，SDA=GPIO6）。本板 IST8310 地址是 **0x0C**，BMP280 默认 **0x76**。驱动只在命令行给出的地址上读芯片 ID。
 - 启动脚本：`init/rc.board_sensors`（由标准 `rcS` 在传感器阶段调用）。
 
 `default.px4board`（Stage 12 / rcS）启用驱动：
@@ -333,7 +333,7 @@ Boot 走标准 **`rcS`** → `rc.board_defaults` → `rc.autostart` → `rc.seri
 |------|--------|------|
 | `SYS_HAS_MAG` / `SYS_HAS_BARO` | 1 | 假定有磁/气压 |
 | `SYS_AUTOSTART` | 4001 | Quad X（FW: 21xx / 车: 50000–52000） |
-| `EKF2_EN` / `ATT_EN` | 1 / 0 | 多旋翼默认 EKF2；`attitude_estimator_q` 已编入备用 |
+| `EKF2_EN` / `ATT_EN` / `LPE_EN` | 0 / 1 / 0 | 性能不够，禁止 EKF2，姿态用 `attitude_estimator_q`。LPE 已编入但默认不启动 |
 | `EKF2_HGT_REF` | 2 | 气压高度 |
 | `EKF2_OF_CTRL` | **0** | 无光流 |
 | `EKF2_RNG_CTRL` | **0** | 无测距 |
@@ -368,7 +368,7 @@ A：确认接收机 TX → GPIO40，3.3 V，`RC_PORT_CONFIG=101`，波特由驱�
 A：查 **SPI2** 接线（CLK=48, CS_ACC=47, CS_GYR=42, MISO=13, MOSI=12, INT1_ACCEL=45, INT3_GYRO=41）及 3.3 V；NSH 执行 `bmi088 -A -R 0 -s start` / `bmi088 -G -R 0 -s start` 单独测试。
 
 **Q：IST8310 / BMP280 找不到？**  
-A：查 **I2C1**（SCL=7, SDA=6）；BMP280 地址通常 0x76 或 0x77，IST8310 为 **0x0E**（`-a 14`）。
+A：查 **I2C1**（SCL=7, SDA=6）。IST8310 用 `ist8310 start -I -b 1 -a 12 -R 8`（**0x0C**）；`-a 14`（0x0E）读不到本板芯片。BMP280 用 `bmp280 start -I -b 1`（**0x76**），SDO 拉高时再试 `bmp280 start -I -b 1 -a 0x77`。开机顺序见 `init/rc.board_sensors`。
 
 **Q：PWM 现在是哪四路？**
 

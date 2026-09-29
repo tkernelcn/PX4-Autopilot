@@ -16,8 +16,10 @@ param set-default SYS_PARAM_VER 1
 param set-default SYS_AUTOCONFIG 0
 param set-default SYS_AUTOSTART 4001
 param set-default MAV_0_CONFIG 102
-param set-default EKF2_EN 1
-param set-default ATT_EN 0
+# 性能不够跑 EKF2。姿态用 ATT。LPE 默认关闭(不支持气压定高)
+param set-default EKF2_EN 0
+param set-default ATT_EN 1
+param set-default LPE_EN 0
 param set-default MAV_1_CONFIG 0
 param set-default MAV_2_CONFIG 0
 
@@ -80,7 +82,7 @@ param set-default RC_PORT_CONFIG 101
 param set-default SER_TEL1_BAUD 420000
 param set-default SER_TEL2_BAUD 115200
 
-param set-default IMU_GYRO_RATEMAX 400
+param set-default IMU_GYRO_RATEMAX 200
 param set-default IMU_INTEG_RATE 100
 param set-default COM_CPU_MAX -1
 param set-default COM_RAM_MAX -1
