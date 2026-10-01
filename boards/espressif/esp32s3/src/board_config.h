@@ -79,15 +79,13 @@
 #define BOARD_SPI2_DRDY_BMI088_ACCEL    45 /* BMI088 INT1: accel FIFO watermark */
 #define BOARD_SPI2_DRDY_BMI088_GYRO     41 /* BMI088 INT3: gyro FIFO interrupt */
 
-#define ADC_BATTERY_VOLTAGE_CHANNEL   4
-#define ADC_BATTERY_CURRENT_CHANNEL  2
-
-#define ADC_CHANNELS \
-	((1 << ADC_BATTERY_VOLTAGE_CHANNEL) | \
-	 (1 << ADC_BATTERY_CURRENT_CHANNEL))
-
-#define CONFIG_ESP32S3_ADC_VOL_3100 1
-#define CONFIG_ESP32S3_ADC1_CHANNEL4 1
+/* Single-cell battery: 200k/100k divider + capacitor on GPIO17 = ADC2_CH6.
+ * The private ADC backend uses ADC2 channel numbers as PX4 channel IDs.
+ */
+#define BOARD_BATTERY_ADC_GPIO       17
+#define ADC_BATTERY_VOLTAGE_CHANNEL  6
+#define ADC_BATTERY_CURRENT_CHANNEL (-1)
+#define ADC_CHANNELS (1U << ADC_BATTERY_VOLTAGE_CHANNEL)
 
 #define ADC_V5_V_FULL_SCALE (7.17f)
 

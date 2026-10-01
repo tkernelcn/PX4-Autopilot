@@ -27,7 +27,10 @@ param set-default MAV_2_CONFIG 0
 param set-default SYS_DM_BACKEND 1
 param set-default SDLOG_BACKEND 2
 
-param set-default BAT1_V_DIV 1
+# GPIO17 / ADC2_CH6, 200k high side + 100k low side, voltage-only monitoring.
+param set-default BAT1_V_DIV 3
+param set-default BAT1_V_CHANNEL -1
+param set-default BAT1_I_CHANNEL -1
 param set-default BAT1_A_PER_V 1
 param set-default BAT1_V_EMPTY 3.3
 param set-default BAT1_V_CHARGED 4.2
@@ -88,5 +91,5 @@ param set-default IMU_GYRO_RATEMAX 200
 param set-default IMU_INTEG_RATE 100
 param set-default COM_CPU_MAX -1
 param set-default COM_RAM_MAX -1
-param set-default BAT1_SOURCE 1
+param set-default BAT1_SOURCE 0
 param set-default BAT1_N_CELLS 1
