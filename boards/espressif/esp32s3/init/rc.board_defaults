@@ -38,6 +38,8 @@ param set-default COM_ARM_SDCARD 0
 
 param set-default MAV_TYPE 2
 
+# Brushed motor duty units: 0 = off, 2100 = 100%. All four share LEDC timer 0.
+param set-default PWM_MAIN_TIM0 400
 param set-default PWM_MAIN_MIN1 0
 param set-default PWM_MAIN_MIN2 0
 param set-default PWM_MAIN_MIN3 0

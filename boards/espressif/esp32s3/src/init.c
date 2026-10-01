@@ -107,6 +107,7 @@ static void board_pwm_gpio_init(void)
 {
 #if defined(BOARD_HAS_PWM)
 	for (int i = 0; i < DIRECT_PWM_OUTPUT_CHANNELS; ++i) {
+		px4_arch_gpiowrite(io_timer_channel_get_gpio_output(i), false);
 		px4_arch_configgpio(io_timer_channel_get_gpio_output(i));
 		esp32s3_gpio_matrix_out(timer_io_channels[i].gpio_out,
 					LEDC_LS_SIG_OUT0_IDX + timer_io_channels[i].timer_channel,

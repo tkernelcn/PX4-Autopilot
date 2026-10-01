@@ -1,0 +1,31 @@
+module_name: '${PWM_MAIN_OR_AUX}'
+actuator_output:
+  output_groups:
+    - generator: pwm
+      param_prefix: '${PWM_MAIN_OR_AUX}'
+      channel_labels: ['${PWM_MAIN_OR_AUX}', '${PWM_MAIN_OR_AUX_CAP}']
+      standard_params:
+        disarmed: { min: 0, max: 0, default: 0 }
+        min: { min: 0, max: 2100, default: 0 }
+        max: { min: 0, max: 2100, default: 2100 }
+        center: { min: 0, max: 2100 }
+        failsafe: { min: 0, max: 2100 }
+      extra_function_groups: [ pwm_fmu ]
+      pwm_timer_param:
+        description:
+          short: Brushed motor PWM frequency for ${label}
+          long: |
+            Continuous LEDC PWM for brushed DC motor power stages.
+            Output values 0..2100 map to 0..100% duty, independent of frequency.
+            All four channels share this frequency. OneShot and DShot are not supported.
+        type: enum
+        default: 400
+        min: 10
+        max: 40000
+        values:
+          400: PWM 400 Hz
+          1000: PWM 1 kHz
+          10000: PWM 10 kHz
+          20000: PWM 20 kHz
+          40000: PWM 40 kHz
+        reboot_required: true

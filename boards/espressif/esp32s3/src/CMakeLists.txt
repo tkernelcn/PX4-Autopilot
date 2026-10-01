@@ -5,6 +5,10 @@
 ############################################################################
 
 # Board bring-up: init, LED, I2C/SPI description, PWM timer map, param MTD.
+if(CONFIG_DRIVERS_PWM_OUT)
+	add_subdirectory(pwm_out)
+endif()
+
 add_library(drivers_board
 	init.c
 	led.c

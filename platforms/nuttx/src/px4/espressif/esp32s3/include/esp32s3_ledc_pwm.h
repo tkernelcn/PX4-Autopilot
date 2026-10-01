@@ -28,7 +28,11 @@
 
 #define LEDC_PARA_UP_CH0     BIT(4)
 #define LEDC_SIG_OUT_EN_CH0  BIT(2)
+#define LEDC_IDLE_LV_CH0     BIT(3)
 #define LEDC_DUTY_START_CH0  BIT(31)
+#define LEDC_DUTY_INC_CH0    BIT(30)
+#define LEDC_DUTY_NUM_CH0_S  20
+#define LEDC_DUTY_CYCLE_CH0_S 10
 
 #define LEDC_TIMER0_RST      BIT(23)
 #define LEDC_TIMER0_PARA_UP  BIT(25)
@@ -40,6 +44,8 @@
 
 #define LEDC_RELOAD_MAX           16384
 #define LEDC_RELOAD_MAX_BIT_LEN   14
+#define LEDC_CLK_DIV_MIN          256U
+#define LEDC_CLK_DIV_MAX          0x3ffffU
 #define LEDC_CLK_APB_FREQ         (80UL * 1000000UL)
 
 #define LEDC_TIMER_REG(r, n) \

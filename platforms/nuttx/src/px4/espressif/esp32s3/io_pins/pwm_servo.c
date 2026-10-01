@@ -1,7 +1,8 @@
 /****************************************************************************
  *
- *   ESP32-S3 PWM via direct LEDC register access (PX4 layer, no NuttX driver).
- *   Architecture follows boards/espressif/esp32/io_pins/pwm_servo.c.
+ *   ESP32-S3 brushed motor PWM via direct LEDC register access.
+ *   Board-specific output units: 0..BOARD_PWM_DRIVE_FULL_SCALE = 0..100% duty.
+ *   Unlike a servo/ESC backend, these values are not pulse widths in us.
  *
  ****************************************************************************/
 
@@ -9,182 +10,222 @@
 #include <nuttx/arch.h>
 #include <nuttx/irq.h>
 
+#include <errno.h>
 #include <stdbool.h>
 #include <stdint.h>
 
-#include <arch/board/board.h>
 #include <drivers/drv_pwm_output.h>
-
 #include <px4_arch/io_timer.h>
 
-#include "esp32s3_gpio.h"
 #include "xtensa.h"
 #include "hardware/esp32s3_system.h"
-#include "hardware/esp32s3_gpio_sigmap.h"
 #include "esp32s3_ledc_pwm.h"
 
-#define b16HALF  0x00008000U
-#define b16toi(a) ((a) >> 16)
+#define PWM_CHANNEL_MASK ((1U << DIRECT_PWM_OUTPUT_CHANNELS) - 1U)
 
 static uint32_t g_reload = LEDC_RELOAD_MAX;
-static uint32_t g_timer_rate = 400;
+static uint32_t g_initialized_mask;
+static uint32_t g_enabled_mask;
+static uint16_t g_values[DIRECT_PWM_OUTPUT_CHANNELS];
 static bool g_ledc_clk_enabled;
 
+/* All helpers are called with interrupts locked. */
 static void ledc_enable_clk(void)
 {
-	if (g_ledc_clk_enabled) {
-		return;
+	if (!g_ledc_clk_enabled) {
+		ledc_setbits(SYSTEM_LEDC_CLK_EN, SYSTEM_PERIP_CLK_EN0_REG);
+		ledc_resetbits(SYSTEM_LEDC_RST, SYSTEM_PERIP_RST_EN0_REG);
+		putreg32(LEDC_CLK_RES_APB | LEDC_CLK_EN, LEDC_CONF_REG);
+		g_ledc_clk_enabled = true;
 	}
-
-	irqstate_t flags = px4_enter_critical_section();
-	ledc_setbits(SYSTEM_LEDC_CLK_EN, SYSTEM_PERIP_CLK_EN0_REG);
-	ledc_resetbits(SYSTEM_LEDC_RST, SYSTEM_PERIP_RST_EN0_REG);
-	putreg32(LEDC_CLK_RES_APB, LEDC_CONF_REG);
-	ledc_setbits(LEDC_CLK_EN, LEDC_CONF_REG);
-	g_ledc_clk_enabled = true;
-	px4_leave_critical_section(flags);
 }
 
-static void setup_timer_frequency(unsigned timer, unsigned frequency)
+static void setup_channel_duty(unsigned channel)
 {
-	uint32_t reload;
-	uint8_t shift;
-	float prescaler;
-	uint32_t integral_prescaler;
-	uint32_t fractional_prescaler;
-	uint64_t pwmclk = LEDC_CLK_APB_FREQ;
+	const unsigned hw_channel = timer_io_channels[channel].timer_channel;
+	const uint16_t value = (g_enabled_mask & (1U << channel)) ? g_values[channel] : 0;
+	uint32_t config = io_timers[0].base;
+	uint32_t duty = 0;
 
-	LEDC_SET_TIMER_BITS(timer, LEDC_TIMER0_CONF_REG, LEDC_TIMER0_RST);
+	if (value >= BOARD_PWM_DRIVE_FULL_SCALE) {
+		/* Constant high avoids the LEDC maximum-resolution duty overflow. */
+		config |= LEDC_IDLE_LV_CH0;
 
-	for (reload = LEDC_RELOAD_MAX, shift = LEDC_RELOAD_MAX_BIT_LEN;
-	     reload > 1;
-	     reload >>= 1, shift--) {
-		if (reload * frequency <= pwmclk) {
+	} else if (value > 0) {
+		duty = ((uint32_t)value * g_reload + BOARD_PWM_DRIVE_FULL_SCALE / 2) / BOARD_PWM_DRIVE_FULL_SCALE;
+		config |= LEDC_SIG_OUT_EN_CH0;
+	}
+
+	/* Keep the output enabled during normal duty updates. Zero/disabled uses
+	 * the low idle level, without stopping the shared timer or other motors.
+	 */
+	LEDC_SET_CHAN_REG(hw_channel, LEDC_CH0_DUTY_REG, duty << 4);
+	LEDC_SET_CHAN_REG(hw_channel, LEDC_CH0_CONF1_REG,
+			 LEDC_DUTY_START_CH0 | LEDC_DUTY_INC_CH0 |
+			 (1U << LEDC_DUTY_NUM_CH0_S) | (1U << LEDC_DUTY_CYCLE_CH0_S));
+	LEDC_SET_CHAN_REG(hw_channel, LEDC_CH0_CONF0_REG, config | LEDC_PARA_UP_CH0);
+}
+
+static int setup_timer_frequency(unsigned frequency)
+{
+	/* Continuous PWM only. In particular, reject OneShot's rate=0. */
+	if (frequency < 10 || frequency > 40000) {
+		return -ERANGE;
+	}
+
+	unsigned resolution = LEDC_RELOAD_MAX_BIT_LEN;
+	uint32_t divider = 0;
+
+	for (; resolution > 0; --resolution) {
+		const uint64_t denominator = (uint64_t)frequency * (1U << resolution);
+		divider = ((uint64_t)LEDC_CLK_APB_FREQ * 256U + denominator / 2) / denominator;
+
+		if (divider >= LEDC_CLK_DIV_MIN && divider <= LEDC_CLK_DIV_MAX) {
 			break;
 		}
 	}
 
-	prescaler = (float)pwmclk / (float)frequency / (float)reload;
-	integral_prescaler = (uint32_t)prescaler;
-
-	if (integral_prescaler == 0) {
-		integral_prescaler = 1;
+	if (resolution == 0) {
+		return -ERANGE;
 	}
 
-	fractional_prescaler = (uint32_t)((prescaler - (float)integral_prescaler) * 256.f);
-	g_reload = reload;
-	g_timer_rate = frequency;
+	g_reload = 1U << resolution;
+	const unsigned timer = io_timers[0].base;
+	const uint32_t config = (resolution << LEDC_TIMER0_DUTY_RES_S) | (divider << LEDC_CLK_DIV_TIMER0_S);
+	LEDC_SET_TIMER_REG(timer, LEDC_TIMER0_CONF_REG, config | LEDC_TIMER0_RST | LEDC_TIMER0_PARA_UP);
+	LEDC_SET_TIMER_REG(timer, LEDC_TIMER0_CONF_REG, config | LEDC_TIMER0_PARA_UP);
 
-	irqstate_t flags = px4_enter_critical_section();
+	/* Recalculate duty counts if the timer resolution changed. */
+	for (unsigned channel = 0; channel < DIRECT_PWM_OUTPUT_CHANNELS; ++channel) {
+		if (g_initialized_mask & (1U << channel)) {
+			setup_channel_duty(channel);
+		}
+	}
 
-	uint32_t regval = ((uint32_t)shift << LEDC_TIMER0_DUTY_RES_S) |
-			  (fractional_prescaler << LEDC_CLK_DIV_TIMER0_S) |
-			  (integral_prescaler << (LEDC_CLK_DIV_TIMER0_S + 8));
-
-	LEDC_SET_TIMER_REG(timer, LEDC_TIMER0_CONF_REG, regval);
-	LEDC_SET_TIMER_BITS(timer, LEDC_TIMER0_CONF_REG, LEDC_TIMER0_PARA_UP);
-
-	px4_leave_critical_section(flags);
-}
-
-static void setup_channel_duty(unsigned channel, uint16_t value)
-{
-	uint32_t regval = b16toi((uint32_t)value * g_reload + b16HALF);
-
-	irqstate_t flags = px4_enter_critical_section();
-
-	LEDC_SET_CHAN_REG(channel, LEDC_CH0_CONF0_REG, 0);
-	LEDC_SET_CHAN_REG(channel, LEDC_CH0_CONF1_REG, 0);
-	LEDC_SET_CHAN_REG(channel, LEDC_CH0_CONF0_REG, io_timers[0].base);
-	LEDC_SET_CHAN_REG(channel, LEDC_CH0_HPOINT_REG, 0);
-	LEDC_SET_CHAN_REG(channel, LEDC_CH0_DUTY_REG, regval << 4);
-	LEDC_SET_CHAN_BITS(channel, LEDC_CH0_CONF0_REG, LEDC_SIG_OUT_EN_CH0);
-	LEDC_SET_CHAN_BITS(channel, LEDC_CH0_CONF1_REG, LEDC_DUTY_START_CH0);
-	LEDC_SET_CHAN_BITS(channel, LEDC_CH0_CONF0_REG, LEDC_PARA_UP_CH0);
-
-	px4_leave_critical_section(flags);
+	return OK;
 }
 
 int up_pwm_servo_set(unsigned channel, uint16_t value)
 {
 	if (channel >= DIRECT_PWM_OUTPUT_CHANNELS) {
-		return PX4_ERROR;
+		return -EINVAL;
 	}
 
-	setup_channel_duty(channel, value);
+	irqstate_t flags = px4_enter_critical_section();
+
+	if (!(g_initialized_mask & (1U << channel))) {
+		px4_leave_critical_section(flags);
+		return -EINVAL;
+	}
+
+	if (value != PWM_IGNORE_THIS_CHANNEL) {
+		g_values[channel] = value > BOARD_PWM_DRIVE_FULL_SCALE ? BOARD_PWM_DRIVE_FULL_SCALE : value;
+		setup_channel_duty(channel);
+	}
+
+	px4_leave_critical_section(flags);
 	return OK;
 }
 
 uint16_t up_pwm_servo_get(unsigned channel)
 {
-	(void)channel;
-	return 0;
+	irqstate_t flags = px4_enter_critical_section();
+	uint16_t value = 0;
+
+	if (channel < DIRECT_PWM_OUTPUT_CHANNELS && (g_enabled_mask & (1U << channel))) {
+		value = g_values[channel];
+	}
+
+	px4_leave_critical_section(flags);
+	return value;
 }
 
 int up_pwm_servo_init(uint32_t channel_mask)
 {
-	(void)channel_mask;
+	channel_mask &= PWM_CHANNEL_MASK;
 
+	if (channel_mask == 0) {
+		return 0;
+	}
+
+	irqstate_t flags = px4_enter_critical_section();
 	ledc_enable_clk();
-	setup_timer_frequency(io_timers[0].base, 400);
 
-	return OK;
+	if (g_initialized_mask == 0) {
+		setup_timer_frequency(400);
+	}
+
+	for (unsigned channel = 0; channel < DIRECT_PWM_OUTPUT_CHANNELS; ++channel) {
+		if ((channel_mask & (1U << channel)) && !(g_initialized_mask & (1U << channel))) {
+			g_values[channel] = 0;
+			LEDC_SET_CHAN_REG(timer_io_channels[channel].timer_channel, LEDC_CH0_HPOINT_REG, 0);
+			setup_channel_duty(channel);
+		}
+	}
+
+	g_initialized_mask |= channel_mask;
+	px4_leave_critical_section(flags);
+	/* PWMOut consumes this return value as a channel mask, not a status. */
+	return channel_mask;
 }
 
 void up_pwm_servo_deinit(uint32_t channel_mask)
 {
-	up_pwm_servo_arm(false, channel_mask);
+	irqstate_t flags = px4_enter_critical_section();
+	channel_mask = channel_mask ? channel_mask & g_initialized_mask : g_initialized_mask;
+
+	if (channel_mask != 0) {
+		up_pwm_servo_arm(false, channel_mask);
+	}
+
+	g_initialized_mask &= ~channel_mask;
+	px4_leave_critical_section(flags);
 }
 
 int up_pwm_servo_set_rate_group_update(unsigned group, unsigned rate)
 {
-	if (group == 0) {
-		setup_timer_frequency(io_timers[0].base, rate);
-		return OK;
+	if (group != 0) {
+		return -EINVAL;
 	}
 
-	return ERROR;
+	irqstate_t flags = px4_enter_critical_section();
+	int ret = g_initialized_mask ? setup_timer_frequency(rate) : -EINVAL;
+	px4_leave_critical_section(flags);
+	return ret;
 }
 
 void up_pwm_update(unsigned channels_mask)
 {
+	/* Continuous LEDC PWM latches channel updates at the next period. */
 	(void)channels_mask;
 }
 
 uint32_t up_pwm_servo_get_rate_group(unsigned group)
 {
-	if (group == 0) {
-#if defined(BOARD_PWM_TIM0_CHANNELS)
-		return (1U << BOARD_PWM_TIM0_CHANNELS) - 1U;
-#endif
-	}
-
-	return 0;
+	return group == 0 ? PWM_CHANNEL_MASK : 0;
 }
 
 void up_pwm_servo_arm(bool armed, uint32_t channel_mask)
 {
+	irqstate_t flags = px4_enter_critical_section();
+	channel_mask = channel_mask ? channel_mask & g_initialized_mask : g_initialized_mask;
+
 	if (armed) {
-		for (unsigned chan = 0; chan < DIRECT_PWM_OUTPUT_CHANNELS; chan++) {
-			if ((channel_mask & (1U << chan)) == 0) {
-				continue;
-			}
-
-			irqstate_t flags = px4_enter_critical_section();
-
-			LEDC_SET_CHAN_REG(chan, LEDC_CH0_CONF0_REG, 0);
-			LEDC_SET_CHAN_REG(chan, LEDC_CH0_CONF1_REG, 0);
-			LEDC_SET_CHAN_REG(chan, LEDC_CH0_HPOINT_REG, 0);
-			LEDC_SET_CHAN_BITS(chan, LEDC_CH0_CONF0_REG, LEDC_SIG_OUT_EN_CH0);
-			LEDC_SET_CHAN_BITS(chan, LEDC_CH0_CONF1_REG, LEDC_DUTY_START_CH0);
-			LEDC_SET_CHAN_BITS(chan, LEDC_CH0_CONF0_REG, LEDC_PARA_UP_CH0);
-
-			px4_leave_critical_section(flags);
-		}
+		g_enabled_mask |= channel_mask;
 
 	} else {
-		irqstate_t flags = px4_enter_critical_section();
-		LEDC_SET_TIMER_BITS(io_timers[0].base, LEDC_TIMER0_CONF_REG, LEDC_TIMER0_RST);
-		px4_leave_critical_section(flags);
+		g_enabled_mask &= ~channel_mask;
 	}
+
+	for (unsigned channel = 0; channel < DIRECT_PWM_OUTPUT_CHANNELS; ++channel) {
+		if (channel_mask & (1U << channel)) {
+			if (!armed) {
+				g_values[channel] = 0;
+			}
+
+			setup_channel_duty(channel);
+		}
+	}
+
+	px4_leave_critical_section(flags);
 }

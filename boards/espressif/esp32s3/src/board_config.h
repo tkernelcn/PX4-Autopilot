@@ -97,7 +97,10 @@
 #define GPIO_HEATER_OUTPUT (GPIO_OUTPUT | 18)
 #define HEATER_OUTPUT_EN(on_true) px4_arch_gpiowrite(GPIO_HEATER_OUTPUT, (on_true))
 
-/* PWM outputs (LEDC) */
+/* Brushed DC motor outputs (LEDC): PX4 output 0..2100 maps to 0..100% duty.
+ * These outputs drive motor power stages, not pulse-width controlled ESCs.
+ */
+#define BOARD_PWM_DRIVE_FULL_SCALE     2100
 #define BOARD_PWM_TIM0_CHANNELS        4
 #define BOARD_PWM_CHANNEL0_PIN         8
 #define BOARD_PWM_CHANNEL1_PIN         38

@@ -273,7 +273,52 @@ PX4 设备表（`boards/espressif/esp32s3/src/spi.cpp`）：
 | MAIN3 | `PWM_MAIN_FUNC3=102` | **11** | Motor 2 |
 | MAIN4 | `PWM_MAIN_FUNC4=104` | **1** | Motor 4 |
 
-脉宽默认仍为 DIS/MIN=0、MAX=2100（电调接入前建议改成 1000/900 一类安全值）。
+当前四路用于 **直流有刷电机功率级的占空比控制**：输出值 `0..2100`
+对应 `0..100%` 占空比，不是普通电调/舵机的微秒脉宽。默认
+`DIS/MIN=0`、`MAX=2100`，`PWM_MAIN_TIM0=400`（Hz）；四路共享频率。
+例如 `210` 对应约 10%，`1050` 对应 50%，`2100` 对应恒高。
+频率支持 10～40000 Hz，修改后重启；OneShot、DShot 不支持。
+频率改变不会改变占空比映射。参数范围与协议选项在 `pwm_out.yaml` 中定义。
+
+更换固件保留已存参数，测试前检查 `param show PWM_MAIN*`，确认四路
+DIS/MIN=0、MAX=2100、FUNC 如上表，TIM0 为正的有效 PWM 频率。
+不要把常规电调的 1000/1100 空闲值用于这些直流电机输出。
+
+拆桨、保持未解锁，在 NSH 测试（以下每条单独执行）：
+
+```sh
+pwm_out status
+mavlink status
+actuator_test set -m 1 -v 0.1 -t 2
+```
+
+默认线性配置下，Motor 1 在 GPIO8 上输出约 10% 占空比，2 秒后回到低电平。
+`pwm_out status` 应显示 `LEDC brushed PWM`、`initialized mask: 0x0f`，
+并列出四路通道的功能、输出值和范围。
+主机寄存器/状态回归测试：`python3 boards/espressif/esp32s3/tools/test_pwm.py`。
+该测试不代替示波器检查实际频率、占空比及停止行为。
+
+#### QGC 5.0.8 显示旧电机页面 / 命令 209 不支持
+
+QGC 在执行器元数据未成功加载时会回退到旧 Motor 页面，发送
+`MAV_CMD_DO_MOTOR_TEST`（209）。本 PX4 使用 `MAV_CMD_ACTUATOR_TEST`（310）。
+本板默认 GCS 口 UART2 原先只有 256 字节 TX 缓冲，而完整 MAVLink 2 FTP
+帧需要 266 字节，导致 FTP 下载无法正常完成。现配置 UART2 TX=2048、
+RX=1024，使 QGC 能通过 FTP 下载 `/etc/extras/actuators.json.xz` 等元数据。
+
+更新后完全退出并重新打开 QGC，再连接飞控，等待参数/组件信息下载完成，再进入
+“执行器 / Actuators”页面。`mavlink status` 应显示 `/dev/ttyS2`、FTP enabled=YES。
+若仍回退旧页面，需要进一步检查 QGC 的组件元数据/FTP 下载日志以及
+实际连接端口；UART0/UART1 默认用于 GPS/RC，此处只扩大 UART2 缓冲。
+
+#### 板级私有构建
+
+`cmake/init.cmake` 使用 PX4 现有板级入口，从本板构建列表中移除公共
+`drivers/pwm_out`；`src/pwm_out/BrushedPWMOut.cpp` 注册同名 `pwm_out`
+命令，并通过 `src/pwm_out/CMakeLists.txt` 注册本板 `pwm_out.yaml`。
+公共 `src/drivers/pwm_out/PWMOut.cpp` 和 `CMakeLists.txt` 保持原状。
+私有模块继续使用标准 `MixingOutput` 的输出限制、功能分配和执行器测试，
+重新分配功能时保留用户设置的占空比范围，不自动写入普通电调的 1100/1900 值。
 
 ### 2.6 其他 GPIO
 
